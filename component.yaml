@@ -44,6 +44,6 @@ inputs:
     helpText:
 outputs:
 processFilename: bash
-processArguments: '%AC_STEP_TEMP%/main.sh'
+processArguments: '%AC_STEP_TEMP%/main.rb'
 files:
-  - "main.sh"
+  - "main.rb"
