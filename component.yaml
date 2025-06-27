@@ -43,7 +43,7 @@ inputs:
     description: "If this set, sends extra parameter for git requests."
     helpText:
 outputs:
-processFilename: bash
+processFilename: ruby
 processArguments: '%AC_STEP_TEMP%/main.rb'
 files:
   - "main.rb"
