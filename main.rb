@@ -81,7 +81,7 @@ end
 
 def write_env_file(output_path,root_folder)
   unless ENV['AC_ENV_FILE_PATH'].include?("#{output_path}=")
-    File.open(env_path, 'a') do |f|
+    File.open(ENV['AC_ENV_FILE_PATH'], 'a') do |f|
       f.puts "#{output_path}=#{root_folder}"
     end
   end
