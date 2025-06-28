@@ -96,7 +96,7 @@ end
 
 def main
   cs_git_script_file   = get_env_variable('AC_REUSABLE_REPO_SCRIPT_FILE')
-  cs_git_input_path    = get_optional_env('AC_REUSABLE_REPO_SCRIPT_REPO_PATH')
+  cs_git_input_path    = get_optional_env('AC_REUSABLE_REPO_PATH')
   cs_git_clone_url     = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_CLONE_URL')
   cs_git_username      = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_USERNAME')
   cs_git_pat           = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_PAT')
