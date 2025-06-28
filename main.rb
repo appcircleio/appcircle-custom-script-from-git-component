@@ -7,7 +7,7 @@ require 'English'
 require 'shellwords'
 
 def abort_with_message(msg)
-  puts "@@[error] #{message}"
+  puts "@@[error] #{msg}"
   exit 0
 end
 
