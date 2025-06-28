@@ -7,7 +7,8 @@ require 'English'
 require 'shellwords'
 
 def abort_with_message(msg)
-  abort msg.red
+  puts "@@[error] #{message}"
+  exit 0
 end
 
 def get_env_variable(key)
@@ -20,7 +21,7 @@ def get_optional_env(key)
   value && !value.strip.empty? ? value : nil
 end
 
-def validate_script_folder_input(input_path, script_file)
+def validate_input_script_folder(input_path, script_file)
   file_path = File.join(input_path, script_file)
   abort_with_message("Script file not found at CS_GIT_INPUT_PATH: #{file_path}") unless File.exist?(file_path)
 end
@@ -32,7 +33,7 @@ def run_command(cmd)
   $CHILD_STATUS.success?
 end
 
-def determine_script_folder(clone_url, branch, extra_header)
+def get_path_cloned_repo(clone_url, branch, extra_header)
   abort_with_message('Missing CS_GIT_CLONE_URL or CS_GIT_BRANCH') if clone_url.nil? || clone_url.strip.empty? || branch.nil? || branch.strip.empty?
   root_folder = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
   FileUtils.mkdir_p(root_folder)
@@ -78,22 +79,15 @@ def execute_script_in(folder, script_file, script_args)
   end
 end
 
-def write_env_file(env_path, root_folder)
-  return unless env_path && !env_path.strip.empty?
-  existing = File.exist?(env_path) ? File.read(env_path) : ''
-  unless existing.include?('RUN_SCRIPT_WORKDIR=')
-    File.open(env_path, 'a') { |f| f.puts "RUN_SCRIPT_WORKDIR=#{root_folder}" }
+def write_env_file(output_path,root_folder)
+  unless ENV['AC_ENV_FILE_PATH'].include?("#{output_path}=")
+    File.open(env_path, 'a') do |f|
+      f.puts "#{output_path}=#{root_folder}"
+    end
   end
 end
 
-def handle_output_path(output_path, root_folder)
-  return unless output_path && !output_path.strip.empty?
-  FileUtils.mkdir_p(output_path)
-  FileUtils.cp_r(Dir.glob(File.join(root_folder, '*')), output_path)
-  puts "@@[info] Copied results from #{root_folder} to #{output_path}".green
-end
-
-def build_extra_header(username, pat)
+def set_the_extra_header(username, pat)
   abort_with_message('Missing CS_GIT_USERNAME or CS_GIT_PAT') if username.nil? || username.strip.empty? || pat.nil? || pat.strip.empty?
   auth = "#{username}:#{pat}"
   encoded = Base64.strict_encode64(auth)
@@ -101,29 +95,28 @@ def build_extra_header(username, pat)
 end
 
 def main
-  cs_git_script_file   = get_env_variable('CS_GIT_SCRIPT_FILE')
-  cs_git_input_path    = get_optional_env('CS_GIT_INPUT_PATH')
-  cs_git_clone_url     = get_optional_env('CS_GIT_CLONE_URL')
-  cs_git_username      = get_optional_env('CS_GIT_USERNAME')
-  cs_git_pat           = get_optional_env('CS_GIT_PAT')
-  cs_git_branch        = get_optional_env('CS_GIT_BRANCH')
-  cs_git_extra_params  = get_optional_env('CS_GIT_EXTRA_PARAMS')
-  cs_git_output_path   = get_optional_env('CS_GIT_OUTPUT_PATH')
-  ac_env_file_path     = get_optional_env('AC_ENV_FILE_PATH')
+  cs_git_script_file   = get_env_variable('AC_REUSABLE_REPO_SCRIPT_FILE')
+  cs_git_input_path    = get_optional_env('AC_REUSABLE_REPO_SCRIPT_REPO_PATH')
+  cs_git_clone_url     = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_CLONE_URL')
+  cs_git_username      = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_USERNAME')
+  cs_git_pat           = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_PAT')
+  cs_git_branch        = get_optional_env('AC_REUSABLE_REPO_SCRIPT_GIT_BRANCH')
+  cs_git_extra_params  = get_optional_env('AC_REUSABLE_REPO_SCRIPT_EXTRA_PARAMETERS')
+  cs_git_output_path   = get_optional_env('AC_REUSABLE_SCRIPT_OUTPUT_PATH')
 
   if cs_git_input_path && !cs_git_input_path.strip.empty?
-    validate_script_folder_input(cs_git_input_path, cs_git_script_file)
+    validate_input_script_folder(cs_git_input_path, cs_git_script_file)
     root_folder = cs_git_input_path
   else
-    extra_header = build_extra_header(cs_git_username, cs_git_pat)
-    root_folder = determine_script_folder(cs_git_clone_url, cs_git_branch, extra_header)
+    extra_header = set_the_extra_header(cs_git_username, cs_git_pat)
+    root_folder = get_path_cloned_repo(cs_git_clone_url, cs_git_branch, extra_header)
   end
 
   script_args = prepare_args(cs_git_extra_params)
   execute_script_in(root_folder, cs_git_script_file, script_args)
 
-  write_env_file(ac_env_file_path, root_folder)
-  handle_output_path(cs_git_output_path, root_folder)
+  write_env_file(cs_git_output_path,root_folder)
+
   puts 'Done.'.green
 end
 
