@@ -20,32 +20,25 @@ cs_git_branch       = ENV['CS_GIT_BRANCH']      || abort_with_message('Missing C
 cs_git_script_file  = ENV['CS_GIT_SCRIPT_FILE'] || abort_with_message('Missing CS_GIT_SCRIPT_FILE')
 cs_git_extra_params = ENV['CS_GIT_EXTRA_PARAMS'] || ''
 
-# Prepare Git authentication header
 auth          = "#{cs_git_username}:#{cs_git_pat}"
 encoded_auth  = Base64.strict_encode64(auth)
 header_option = "http.extraheader=Authorization: Basic #{encoded_auth}"
 
-# Clone into timestamped folder
 timestamp   = Time.now.strftime('%Y%m%d_%H%M%S')
 root_folder = "Cloned_Script_#{timestamp}"
 FileUtils.mkdir_p(root_folder)
 
 FileUtils.cd(root_folder) do
-  # Clone repository with optional extra Git params
-  git_extra = cs_git_extra_params.strip.empty? ? '' : "#{cs_git_extra_params.strip} "
-  clone_cmd = "git #{git_extra}-c \"#{header_option}\" clone #{cs_git_clone_url}"
+  clone_cmd = "git -c \"#{header_option}\" clone #{cs_git_clone_url}"
   run_command(clone_cmd)
 
-  # Checkout branch
   repo_name = File.basename(cs_git_clone_url, '.git')
   Dir.chdir(repo_name) do
     run_command("git checkout #{cs_git_branch}")
 
-    # Verify script existence
     script = cs_git_script_file
     abort_with_message("Script file not found: #{script}") unless File.exist?(script)
 
-    # Build execution command with extra script args
     script_args = cs_git_extra_params.strip.empty? ? '' : " #{cs_git_extra_params.strip}"
 
     case File.extname(script).downcase
