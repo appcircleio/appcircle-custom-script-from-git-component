@@ -12,7 +12,7 @@ end
 
 def get_env_variable(key)
   value = ENV[key]
-  value.nil? || value.strip.empty? ? nil : value
+  value.nil? || value.strip.empty? ? abort_with_message("Missing #{key}") : value
 end
 
 def run_command(cmd)
@@ -22,59 +22,75 @@ def run_command(cmd)
   $CHILD_STATUS.success?
 end
 
-cs_git_clone_url   = get_env_variable('CS_GIT_CLONE_URL')   || abort_with_message('Missing CS_GIT_CLONE_URL')
-cs_git_username    = get_env_variable('CS_GIT_USERNAME')    || abort_with_message('Missing CS_GIT_USERNAME')
-cs_git_pat         = get_env_variable('CS_GIT_PAT')         || abort_with_message('Missing CS_GIT_PAT')
-cs_git_branch      = get_env_variable('CS_GIT_BRANCH')      || abort_with_message('Missing CS_GIT_BRANCH')
-cs_git_script_file = get_env_variable('CS_GIT_SCRIPT_FILE') || abort_with_message('Missing CS_GIT_SCRIPT_FILE')
-cs_git_extra_params= ENV['CS_GIT_EXTRA_PARAMS'] || ''
-cs_script_path     = ENV['CS_SCRIPT_PATH']
+def determine_root_folder(clone_url, branch, script_path, header_opt)
+  return script_path unless script_path.nil? || script_path.strip.empty?
 
-auth         = "#{cs_git_username}:#{cs_git_pat}"
-encoded_auth = Base64.strict_encode64(auth)
-header_opt   = "http.extraheader=Authorization: Basic #{encoded_auth}"
+  timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+  folder = "Cloned_Script_#{timestamp}"
+  FileUtils.mkdir_p(folder)
+  FileUtils.cd(folder) do
+    run_command("git -c \"#{header_opt}\" clone #{clone_url}")
+    repo = File.basename(clone_url, '.git')
+    FileUtils.cd(repo) { run_command("git checkout #{branch}") }
+  end
+  folder
+end
 
-if cs_script_path && !cs_script_path.strip.empty?
-  root_folder = cs_script_path
-else
-  timestamp   = Time.now.strftime('%Y%m%d_%H%M%S')
-  root_folder = "Cloned_Script_#{timestamp}"
-  FileUtils.mkdir_p(root_folder)
-  FileUtils.cd(root_folder) do
-    run_command("git -c \"#{header_opt}\" clone #{cs_git_clone_url}")
-    repo_name = File.basename(cs_git_clone_url, '.git')
-    FileUtils.cd(repo_name) do
-      run_command("git checkout #{cs_git_branch}")
+def prepare_args(raw_params)
+  parts = Shellwords.split(raw_params.strip.gsub(',', ' '))
+  parts.empty? ? '' : " #{parts.join(' ')}"
+end
+
+def execute_script_in(folder, script_file, script_args)
+  FileUtils.cd(folder) do
+    abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
+    ext = File.extname(script_file).downcase
+    case ext
+    when '.sh', '.shellscript'
+      FileUtils.chmod('+x', script_file)
+      run_command("./#{script_file}#{script_args}")
+    when '.py'
+      run_command("python #{script_file}#{script_args}")
+    when '.rb'
+      run_command("ruby #{script_file}#{script_args}")
+    when '.pl'
+      run_command("perl #{script_file}#{script_args}")
+    when '.js'
+      run_command("node #{script_file}#{script_args}")
+    when '.java'
+      run_command("javac #{script_file}")
+      class_name = File.basename(script_file, '.java')
+      run_command("java #{class_name}#{script_args}")
+    else
+      abort_with_message("Unsupported script type: #{script_file}")
     end
   end
 end
 
-FileUtils.cd(root_folder) do
-  script = cs_git_script_file
-  abort_with_message("Script file not found: #{script}") unless File.exist?(script)
-
-  args_array = Shellwords.split(cs_git_extra_params.strip.gsub(',', ' '))
-  script_args = args_array.empty? ? '' : " #{args_array.join(' ')}"
-
-  case File.extname(script).downcase
-  when '.sh'
-    FileUtils.chmod('+x', script)
-    run_command("./#{script}#{script_args}")
-  when '.py'
-    run_command("python #{script}#{script_args}")
-  when '.rb'
-    run_command("ruby #{script}#{script_args}")
-  when '.pl'
-    run_command("perl #{script}#{script_args}")
-  when '.js'
-    run_command("node #{script}#{script_args}")
-  when '.java'
-    run_command("javac #{script}")
-    class_name = File.basename(script, '.java')
-    run_command("java #{class_name}#{script_args}")
-  else
-    abort_with_message("Unsupported script type: #{script}")
-  end
+def write_env_file(env_path, root_folder)
+  File.open(env_path, 'a') { |f| f.puts "RUN_SCRIPT_WORKDIR=#{root_folder}" }
 end
 
-puts 'Done.'.green
+def main
+  cs_git_clone_url   = get_env_variable('CS_GIT_CLONE_URL')
+  cs_git_username    = get_env_variable('CS_GIT_USERNAME')
+  cs_git_pat         = get_env_variable('CS_GIT_PAT')
+  cs_git_branch      = get_env_variable('CS_GIT_BRANCH')
+  cs_git_script_file = get_env_variable('CS_GIT_SCRIPT_FILE')
+  cs_git_extra_params= ENV['CS_GIT_EXTRA_PARAMS'] || ''
+  cs_script_path     = ENV['CS_SCRIPT_PATH']
+  ac_env_file_path   = get_env_variable('AC_ENV_FILE_PATH')
+
+  auth         = "#{cs_git_username}:#{cs_git_pat}"
+  encoded_auth = Base64.strict_encode64(auth)
+  header_opt   = "http.extraheader=Authorization: Basic #{encoded_auth}"
+
+  root_folder = determine_root_folder(cs_git_clone_url, cs_git_branch, cs_script_path, header_opt)
+  script_args = prepare_args(cs_git_extra_params)
+  execute_script_in(root_folder, cs_git_script_file, script_args)
+  write_env_file(ac_env_file_path, root_folder)
+
+  puts 'Done.'.green
+end
+
+main
