@@ -25,7 +25,7 @@ def validate_input_script_folder(input_path, script_file)
   abort_with_message("Script file not found at AC_SCRIPT_REPO_DIR: #{file_path}") unless File.exist?(file_path)
 end
 
-def runCommand(command)
+def run_command(command)
   puts "@@[command] #{command}"
   return if system(command)
   exit $?.exitstatus
