@@ -13,7 +13,7 @@ inputs:
     defaultValue: "$AC_SCRIPT_REPO_OUTPUT_DIR"
     isRequired: false
     helpText: ""
-  - key: "AC_SCRIPT_REPO_OUTPUT_DIR"
+  - key: "AC_SCRIPT_REPO_CLONE_URL"
     title: "Git Repository Clone URL"
     description: "The URL of the Git repository to clone. Required if the repository directory is not provided."
     defaultValue: "$AC_SCRIPT_REPO_CLONE_URL"
