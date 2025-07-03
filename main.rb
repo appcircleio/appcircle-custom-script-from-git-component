@@ -100,14 +100,14 @@ def set_the_authentication(username, pat)
 end
 
 def main
-  ac_git_script_file   = env_has_key('AC_SCRIPT_FILENAME')
-  ac_git_input_path    = get_env_variable('AC_SCRIPT_REPO_DIR')
-  ac_git_clone_url     = get_env_variable('AC_SCRIPT_REPO_CLONE_URL')
-  ac_git_username      = get_env_variable('AC_SCRIPT_GIT_USERNAME')
-  ac_git_pat           = get_env_variable('AC_SCRIPT_GIT_PAT')
-  ac_git_branch        = get_env_variable('AC_SCRIPT_GIT_BRANCH')
-  ac_git_extra_params  = get_env_variable('AC_SCRIPT_EXTRA_PARAMETERS')
-  ac_git_output_path   = get_env_variable('AC_SCRIPT_REPO_OUTPUT_DIR')
+  ac_git_script_file   = env_has_key("AC_SCRIPT_FILENAME")
+  ac_git_input_path    = get_env_variable("AC_SCRIPT_REPO_DIR")
+  ac_git_clone_url     = get_env_variable("AC_SCRIPT_REPO_CLONE_URL")
+  ac_git_username      = get_env_variable("AC_SCRIPT_GIT_USERNAME")
+  ac_git_pat           = get_env_variable("AC_SCRIPT_GIT_PAT")
+  ac_git_branch        = get_env_variable("AC_SCRIPT_GIT_BRANCH")
+  ac_git_extra_params  = get_env_variable("AC_SCRIPT_EXTRA_PARAMETERS")
+  ac_git_output_path   = get_env_variable("AC_SCRIPT_REPO_OUTPUT_DIR")
 
   if param_checker(ac_git_clone_url)
     if param_checker(ac_git_username, ac_git_pat)
@@ -120,7 +120,7 @@ def main
     validate_input_script_folder(ac_git_input_path, ac_git_script_file)
     root_folder = ac_git_input_path
   else
-    abort_with_message("Error: define REPO_DIR or CLONE_URL + USERNAME + PAT")
+    abort_with_message("Error: please provide either - AC_SCRIPT_REPO_DIR - or - AC_SCRIPT_REPO_CLONE_URL + AC_SCRIPT_GIT_USERNAME + AC_SCRIPT_GIT_PAT -")
   end
 
   script_args = prepare_args(ac_git_extra_params)
