@@ -13,7 +13,7 @@ One of the following input groups (either AC_SCRIPT_REPO_DIR or AC_SCRIPT_REPO_C
 
 - `AC_SCRIPT_GIT_USERNAME`: Username for private repository authentication. 
 - `AC_SCRIPT_GIT_PAT`: Personal Access Token (PAT) for repository authentication.
--
+
 - `AC_SCRIPT_GIT_BRANCH`: Git branch to check out before execution (defaults to main).
 - `AC_SCRIPT_EXTRA_PARAMETERS`: Additional parameters to pass to the script (comma "," separated; if a parameter has an empty character, define it with " ").
 
