@@ -1,6 +1,6 @@
 # Appcircle Custom Script from Git Component
 
-Clone or use an existing Git repository, execute a specified custom script (shell, Python, Ruby, Node.js, Perl, or Java), and expose the workspace path via environment variables in your Appcircle workflow.
+Clone or use an existing Git repository, execute a specified custom script (bash, Python, Ruby, Node.js, Perl, or Java), and expose the workspace path via environment variables in your Appcircle workflow.
 
 ## Required Inputs
 
