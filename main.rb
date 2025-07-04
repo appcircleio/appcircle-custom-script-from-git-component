@@ -84,11 +84,8 @@ def execute_script_in(folder, script_file, branch, script_args)
 end
 
 def write_env_file(output_path,root_folder)
-  return unless param_checker(output_path)
-  unless ENV['AC_ENV_FILE_PATH'].include?("#{output_path}=")
-    File.open(ENV['AC_ENV_FILE_PATH'], 'a') do |f|
-      f.puts "#{output_path}=#{root_folder}"
-    end
+  File.open(ENV['AC_ENV_FILE_PATH'], 'a') do |f|
+    f.puts "#{output_path}=#{root_folder}"
   end
 end
 
@@ -107,7 +104,6 @@ def main
   ac_git_pat           = get_env_variable("AC_SCRIPT_GIT_PAT")
   ac_git_branch        = get_env_variable("AC_SCRIPT_GIT_BRANCH")
   ac_git_extra_params  = get_env_variable("AC_SCRIPT_EXTRA_PARAMETERS")
-  ac_git_output_path   = get_env_variable("AC_SCRIPT_REPO_OUTPUT_DIR")
 
   if param_checker(ac_git_clone_url)
     if param_checker(ac_git_username, ac_git_pat)
@@ -126,7 +122,7 @@ def main
   script_args = prepare_args(ac_git_extra_params)
   execute_script_in(root_folder, ac_git_script_file, ac_git_branch, script_args)
 
-  write_env_file(ac_git_output_path,root_folder)
+  write_env_file("AC_SCRIPT_REPO_OUTPUT_DIR",root_folder)
 
   puts 'Done.'.green
 end
