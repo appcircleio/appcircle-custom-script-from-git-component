@@ -7,8 +7,14 @@ requiredComponents:
 precedingComponents:
 followingComponents:
 inputs:
+  - key: "AC_SCRIPT_FILENAME"
+    title: "Script File Name"
+    description: "Provide the exact name of the script file to execute within the repository (e.g., test.sh, code.rb, python.py)."
+    defaultValue: "$AC_SCRIPT_FILENAME"
+    isRequired: true
+    helpText: ""
   - key: "AC_SCRIPT_REPO_DIR"
-    title: "Git Repository Directory to Reuse the Script"
+    title: "Repository Directory to Reuse the Script"
     description: "If the Git repository has already been cloned in a previous step, set this to Repository Directory Output key. Required if Clone URL, Username, and Personal Access Token are not provided."
     defaultValue: "$AC_SCRIPT_REPO_OUTPUT_DIR"
     isRequired: false
@@ -36,12 +42,6 @@ inputs:
     description: "The name of the branch to checkout from the script repository. Default branch is main"
     defaultValue: "$AC_SCRIPT_GIT_BRANCH"
     isRequired: false
-    helpText: ""
-  - key: "AC_SCRIPT_FILENAME"
-    title: "Script File Name"
-    description: "Provide the exact name of the script file to execute within the repository (e.g., test.sh, code.rb, python.py)."
-    defaultValue: "$AC_SCRIPT_FILENAME"
-    isRequired: true
     helpText: ""
   - key: "AC_SCRIPT_EXTRA_PARAMETERS"
     title: "Extra Parameters for the Script"

@@ -2,6 +2,7 @@
 require 'base64'
 require 'fileutils'
 require 'time'
+require 'open3'
 require 'colored'
 require 'English'
 require 'shellwords'
@@ -29,11 +30,15 @@ def validate_input_script_folder(input_path, script_file)
   abort_with_message("Script file or repository directory not found at AC_SCRIPT_REPO_DIR: #{file_path}") unless File.exist?(file_path)
 end
 
-def run_command(cmd)
-  puts "@@[command] #{cmd}"
-  output = `#{cmd}`
-  puts output
-  $CHILD_STATUS.success?
+def run_command(command)
+  raise ArgumentError, "Komut verilmeli" unless command.is_a?(String) && !command.empty?
+  puts "@@[command] #{command}"
+  stdout_str, stderr_str, status = Open3.capture3(command)
+  puts stdout_str unless stdout_str.nil? || stdout_str.empty?
+  unless status.success?
+    raise "Command failed (#{status.exitstatus}):\n#{stderr_str}"
+  end
+  true
 end
 
 def get_path_clone_repo(clone_url, extra_header = nil)
@@ -83,9 +88,9 @@ def execute_script_in(folder, script_file, branch, script_args)
   end
 end
 
-def write_env_file(output_path,root_folder)
+def write_env_file(root_folder)
   File.open(ENV['AC_ENV_FILE_PATH'], 'a') do |f|
-    f.puts "#{output_path}=#{root_folder}"
+    f.puts "AC_SCRIPT_REPO_OUTPUT_DIR=#{root_folder}"
   end
 end
 
@@ -122,7 +127,7 @@ def main
   script_args = prepare_args(ac_git_extra_params)
   execute_script_in(root_folder, ac_git_script_file, ac_git_branch, script_args)
 
-  write_env_file("AC_SCRIPT_REPO_OUTPUT_DIR",root_folder)
+  write_env_file(root_folder)
 
   puts 'Done.'.green
 end
