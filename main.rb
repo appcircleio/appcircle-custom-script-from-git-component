@@ -30,27 +30,26 @@ def validate_input_script_folder(input_path, script_file)
   abort_with_message("Script file or repository directory not found at AC_SCRIPT_REPO_DIR: #{file_path}") unless File.exist?(file_path)
 end
 
-def run_command(command)
-  raise ArgumentError, "Komut verilmeli" unless command.is_a?(String) && !command.empty?
-  puts "@@[command] #{command}"
-  stdout_str, stderr_str, status = Open3.capture3(command)
-  puts stdout_str unless stdout_str.nil? || stdout_str.empty?
+def run_command(cmd)
+  masked = cmd.gsub(/(Authorization:\s*\w+\s+)\S+/,'\1********')
+  puts "@@[command] #{masked}"
+  stdout, stderr, status = Open3.capture3(cmd)
+  puts stdout unless stdout.empty?
   unless status.success?
-    raise "Command failed (#{status.exitstatus}):\n#{stderr_str}"
+    raise "Command failed (#{status.exitstatus}):\n#{stderr}"
   end
   true
 end
-
 def get_path_clone_repo(clone_url, extra_header = nil)
-  root_folder = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
-  FileUtils.mkdir_p(root_folder)
-  repo_name = File.basename(clone_url, '.git')
-  repo_folder_path = File.join(root_folder, repo_name)
-  FileUtils.cd(root_folder) do
-    command = extra_header ? "git -c \"#{extra_header}\" clone #{clone_url}" : "git clone #{clone_url}"
-    abort_with_message("Error: Cloning the repository failed according to the URL,Username or Personal Access Token") unless run_command(command)
+  root = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
+  FileUtils.mkdir_p(root)
+  repo = File.basename(clone_url, '.git')
+  path = File.join(root, repo)
+  FileUtils.cd(root) do
+    cmd = extra_header ? %Q[git -c "#{extra_header}" clone #{clone_url}] : "git clone #{clone_url}"
+    abort("Error: Cloning failed") unless run_command(cmd)
   end
-  repo_folder_path
+  path
 end
 
 def prepare_args(raw_params)
