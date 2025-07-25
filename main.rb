@@ -4,11 +4,10 @@ require 'fileutils'
 require 'time'
 require 'open3'
 require 'colored'
-require 'English'
 require 'shellwords'
 
 def abort_with_message(msg)
-  abort "@@[error] #{msg}"
+  abort "@@[error] #{msg}".red
 end
 
 def env_has_key(key)
@@ -25,7 +24,7 @@ def param_checker(*params)
   params.all? { |p| !p.to_s.strip.empty? }
 end
 
-def validate_input_script_folder(input_path, script_file)
+def validate_script_path(input_path, script_file)
   file_path = File.join(input_path, script_file)
   abort_with_message("Script file or repository directory not found at AC_SCRIPT_REPO_DIR: #{file_path}") unless File.exist?(file_path)
 end
@@ -47,7 +46,7 @@ def get_path_clone_repo(clone_url, extra_header = nil)
   path = File.join(root, repo)
   FileUtils.cd(root) do
     cmd = extra_header ? %Q[git -c "#{extra_header}" clone #{clone_url}] : "git clone #{clone_url}"
-    abort("Error: Cloning failed") unless run_command(cmd)
+    run_command(cmd)
   end
   path
 end
@@ -57,26 +56,26 @@ def prepare_args(raw_params)
   parts.empty? ? '' : " #{parts.join(' ')}"
 end
 
-def execute_script_in(folder, script_file, branch, script_args)
+def execute_scriptfile(folder, script_file, branch, script_args)
   FileUtils.cd(folder) do
     if branch.nil? || branch.strip.empty?
-      branch = "main"
+      run_command("git checkout #{branch}")
     end
-    abort_with_message("Git checkout failed: #{branch}") unless run_command("git checkout #{branch}")
     abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
+    exec_with_args = "#{script_file}#{script_args}"
     extname = File.extname(script_file).downcase
     case extname
     when '.sh'
       FileUtils.chmod('+x', script_file)
-      run_command("./#{script_file}#{script_args}")
+      run_command("./#{exec_with_args}")
     when '.py'
-      run_command("python #{script_file}#{script_args}")
+      run_command("python #{exec_with_args}")
     when '.rb'
-      run_command("ruby #{script_file}#{script_args}")
+      run_command("ruby #{exec_with_args}")
     when '.pl'
-      run_command("perl #{script_file}#{script_args}")
+      run_command("perl #{exec_with_args}")
     when '.js'
-      run_command("node #{script_file}#{script_args}")
+      run_command("node #{exec_with_args}")
     when '.java'
       run_command("javac #{script_file}")
       class_name = File.basename(script_file, '.java')
@@ -87,9 +86,9 @@ def execute_script_in(folder, script_file, branch, script_args)
   end
 end
 
-def write_env_file(root_folder)
-  File.open(ENV['AC_ENV_FILE_PATH'], 'a') do |f|
-    f.puts "AC_SCRIPT_REPO_OUTPUT_DIR=#{root_folder}"
+def write_env_file(env_var_name, value)
+  File.open(env_has_key("AC_ENV_FILE_PATH"), 'a') do |f|
+    f.puts "#{env_var_name}=#{value}"
   end
 end
 
@@ -102,7 +101,7 @@ end
 
 def main
   ac_git_script_file   = env_has_key("AC_SCRIPT_FILENAME")
-  ac_git_input_path    = get_env_variable("AC_SCRIPT_REPO_DIR")
+  ac_git_repo_path     = get_env_variable("AC_SCRIPT_REPO_DIR")
   ac_git_clone_url     = get_env_variable("AC_SCRIPT_REPO_CLONE_URL")
   ac_git_username      = get_env_variable("AC_SCRIPT_GIT_USERNAME")
   ac_git_pat           = get_env_variable("AC_SCRIPT_GIT_PAT")
@@ -110,25 +109,22 @@ def main
   ac_git_extra_params  = get_env_variable("AC_SCRIPT_EXTRA_PARAMETERS")
 
   if param_checker(ac_git_clone_url)
-    if param_checker(ac_git_username, ac_git_pat)
-      extra_header = set_the_authentication(ac_git_username, ac_git_pat)
-      root_folder  = get_path_clone_repo(ac_git_clone_url, extra_header)
-    else
-      root_folder  = get_path_clone_repo(ac_git_clone_url)
-    end
-  elsif param_checker(ac_git_input_path)
-    validate_input_script_folder(ac_git_input_path, ac_git_script_file)
-    root_folder = ac_git_input_path
+    extra_header = set_the_authentication(ac_git_username, ac_git_pat)
+    root_folder  = get_path_clone_repo(ac_git_clone_url, extra_header)
+  elsif param_checker(ac_git_repo_path)
+    validate_script_path(ac_git_repo_path, ac_git_script_file)
+    root_folder = ac_git_repo_path
   else
-    abort_with_message("Error: please provide either - AC_SCRIPT_REPO_DIR - or - AC_SCRIPT_REPO_CLONE_URL + AC_SCRIPT_GIT_USERNAME + AC_SCRIPT_GIT_PAT -")
+    abort_with_message("Error: Please provide either `AC_SCRIPT_REPO_DIR` or `AC_SCRIPT_REPO_CLONE_URL`.")
   end
 
   script_args = prepare_args(ac_git_extra_params)
-  execute_script_in(root_folder, ac_git_script_file, ac_git_branch, script_args)
+  execute_scriptfile(root_folder, ac_git_script_file, ac_git_branch, script_args)
 
-  write_env_file(root_folder)
+  write_env_file("AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
 
-  puts 'Done.'.green
+  puts 'Custom script execution completed successfully.'.green
+
 end
 
 main
