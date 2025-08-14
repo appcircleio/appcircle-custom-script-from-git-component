@@ -69,12 +69,10 @@ def run_command(args)
 end
 
 def get_path_clone_repo(clone_url, extra_header = nil)
-  dir = env_has_key("AC_TEMP_DIR") || raise('AC_TEMP_DIR not set')
+  dir = env_has_key("AC_TEMP_DIR")
   FileUtils.cd(dir)
   root = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S_%L')}_#{Process.pid}"
   FileUtils.mkdir_p(root)
-  repo = File.basename(clone_url, '.git')
-  repo_path = File.join(root, repo)
   FileUtils.cd(root) do
     cmd = extra_header ? %Q[git -c "#{extra_header}" clone #{clone_url}] : "git clone #{clone_url}"
     args = parse_command(cmd)
@@ -83,6 +81,8 @@ def get_path_clone_repo(clone_url, extra_header = nil)
     print_command(printable)
     run_command(args)
   end
+  repo = File.basename(clone_url, '.git')
+  repo_path = File.join(root, repo)
   FileUtils.cd(repo_path) do
     puts_current_branch
   end
