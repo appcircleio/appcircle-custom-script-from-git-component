@@ -24,36 +24,66 @@ def param_checker(*params)
   params.all? { |p| !p.to_s.strip.empty? }
 end
 
+def puts_current_branch
+  branch = `git rev-parse --abbrev-ref HEAD`.strip
+  puts "Current branch: #{branch}".yellow
+  branch
+end
+
+
 def validate_script_path(input_path, script_file)
   file_path = File.join(input_path, script_file)
   FileUtils.cd(input_path)
-  branch = `git rev-parse --abbrev-ref HEAD`.strip
-  puts "Current branch: #{branch}".yellow
-  abort_with_message("Script file or repository directory not found at AC_SCRIPT_REPO_DIR: #{file_path}") unless File.exist?(file_path)
+  branch = puts_current_branch
+  abort_with_message(
+    "Script file not found at: #{file_path}\n" \
+      "Please make sure that:\n" \
+      "1. AC_SCRIPT_REPO_DIR points to a valid cloned repository.\n" \
+      "2. The file '#{script_file}' exists in the specified directory.\n" \
+      "3. You have pulled the latest changes from the correct branch (current branch: #{branch})."
+  ) unless File.exist?(file_path)
 end
 
-def run_command(cmd)
-  args = cmd.is_a?(Array) ? cmd : Shellwords.split(cmd)
-  masked = args.map { |t| t.gsub(/(Authorization:\s*\w+\s+)\S+/, '\1********') }
-  printable = masked.map { |t| t.match?(/\s/) ? %Q["#{t.gsub('"','\"')}"] : t }.join(' ')
-  puts "@@[command] #{printable}"
+
+def parse_command(cmd)
+  cmd.is_a?(Array) ? cmd : Shellwords.split(cmd)
+end
+
+def format_printable(args)
+  args.map { |t| t.match?(/\s/) ? %Q["#{t.gsub('"','\"')}"] : t }.join(' ')
+end
+
+def mask_sensitive_text(text)
+  text.gsub(/(Authorization:\s*\w+\s+)\S+/, '\1********')
+end
+
+def print_command(text)
+  puts "@@[command] #{text}"
+end
+
+def run_command(args)
   stdout, stderr, status = Open3.capture3(*args)
   puts stdout unless stdout.empty?
   raise "Command failed (#{status.exitstatus}):\n#{stderr}" unless status.success?
   true
 end
+
 def get_path_clone_repo(clone_url, extra_header = nil)
-  dir = ENV['AC_TEMP_DIR'] || raise('AC_TEMP_DIR not set')
+  dir = env_has_key("AC_TEMP_DIR") || raise('AC_TEMP_DIR not set')
   FileUtils.cd(dir)
   root = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S_%L')}_#{Process.pid}"
   FileUtils.mkdir_p(root)
   repo = File.basename(clone_url, '.git')
   FileUtils.cd(root) do
     cmd = extra_header ? %Q[git -c "#{extra_header}" clone #{clone_url}] : "git clone #{clone_url}"
-    run_command(cmd)
+    args = parse_command(cmd)
+    printable = format_printable(args)
+    printable = mask_sensitive_text(printable) if extra_header
+    print_command(printable)
+    run_command(args)
   end
-  path = File.join(dir, root, repo)
-  path
+  puts_current_branch
+  File.join(dir, root, repo)
 end
 
 def prepare_args(raw_params)
@@ -114,7 +144,6 @@ def main
   ac_git_branch        = get_env_variable("AC_SCRIPT_GIT_BRANCH")
   ac_git_extra_params  = get_env_variable("AC_SCRIPT_EXTRA_PARAMETERS")
 
-  cd temp_dir
   if param_checker(ac_git_clone_url)
     if param_checker(ac_git_username,ac_git_pat)
       extra_header = set_the_authentication(ac_git_username, ac_git_pat)
@@ -130,7 +159,7 @@ def main
   script_args = prepare_args(ac_git_extra_params)
   execute_script_file(root_folder, ac_git_script_file, ac_git_branch, script_args)
 
-  write_env_file(ac_git_clone_url,"AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
+  write_env_file(ac_git_clone_url, "AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
 
   puts 'Custom script execution completed successfully.'.green
 
