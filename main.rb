@@ -56,9 +56,9 @@ def prepare_args(raw_params)
   parts.empty? ? '' : " #{parts.join(' ')}"
 end
 
-def execute_scriptfile(folder, script_file, branch, script_args)
+def execute_script_file(folder, script_file, branch, script_args)
   FileUtils.cd(folder) do
-    if branch.nil? || branch.strip.empty?
+    unless branch.nil? || branch.strip.empty?
       run_command("git checkout #{branch}")
     end
     abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
@@ -77,9 +77,9 @@ def execute_scriptfile(folder, script_file, branch, script_args)
     when '.js'
       run_command("node #{exec_with_args}")
     when '.java'
-      run_command("javac #{script_file}")
+      run_command("javac -d . #{script_file}")
       class_name = File.basename(script_file, '.java')
-      run_command("java #{class_name}#{script_args}")
+      run_command("java -cp .:#{File.dirname(script_file)} #{class_name}#{script_args}")
     else
       abort_with_message("Unsupported script type: #{script_file}")
     end
@@ -109,7 +109,9 @@ def main
   ac_git_extra_params  = get_env_variable("AC_SCRIPT_EXTRA_PARAMETERS")
 
   if param_checker(ac_git_clone_url)
-    extra_header = set_the_authentication(ac_git_username, ac_git_pat)
+    if param_checker(ac_git_username,ac_git_pat)
+      extra_header = set_the_authentication(ac_git_username, ac_git_pat)
+    end
     root_folder  = get_path_clone_repo(ac_git_clone_url, extra_header)
   elsif param_checker(ac_git_repo_path)
     validate_script_path(ac_git_repo_path, ac_git_script_file)
@@ -119,7 +121,7 @@ def main
   end
 
   script_args = prepare_args(ac_git_extra_params)
-  execute_scriptfile(root_folder, ac_git_script_file, ac_git_branch, script_args)
+  execute_script_file(root_folder, ac_git_script_file, ac_git_branch, script_args)
 
   write_env_file("AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
 
