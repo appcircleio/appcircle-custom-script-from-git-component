@@ -7,7 +7,10 @@ require 'colored'
 require 'shellwords'
 
 def abort_with_message(msg)
-  abort "@@[error] #{msg}".red
+  msg.to_s.strip.split("\n").each do |line|
+    puts "@@[error] #{line}"
+  end
+  abort
 end
 
 def env_has_key(key)
@@ -24,7 +27,7 @@ def param_checker(*params)
   params.all? { |p| !p.to_s.strip.empty? }
 end
 
-def puts_current_branch
+def get_current_branch
   branch = `git rev-parse --abbrev-ref HEAD`.strip
   puts "Current branch: #{branch}".yellow
   branch
@@ -34,13 +37,12 @@ end
 def validate_script_path(input_path, script_file)
   file_path = File.join(input_path, script_file)
   FileUtils.cd(input_path)
-  branch = puts_current_branch
   abort_with_message(
     "Script file not found at: #{file_path}\n" \
       "Please make sure that:\n" \
       "1. AC_SCRIPT_REPO_DIR points to a valid cloned repository.\n" \
       "2. The file '#{script_file}' exists in the specified directory.\n" \
-      "3. You have pulled the latest changes from the correct branch (current branch: #{branch})."
+      "3. You have pulled the latest changes from the correct branch."
   ) unless File.exist?(file_path)
 end
 
@@ -82,10 +84,6 @@ def get_path_clone_repo(clone_url, extra_header = nil)
     run_command(args)
   end
   repo = File.basename(clone_url, '.git')
-  repo_path = File.join(root, repo)
-  FileUtils.cd(repo_path) do
-    puts_current_branch
-  end
   File.join(dir, root, repo)
 end
 
@@ -100,6 +98,7 @@ def execute_script_file(folder, script_file, branch, script_args)
     unless branch.nil? || branch.strip.empty?
       run_command("git checkout #{branch}")
     end
+    get_current_branch
     abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
     extname = File.extname(script_file).downcase
     case extname
