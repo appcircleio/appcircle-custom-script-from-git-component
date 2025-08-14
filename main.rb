@@ -26,34 +26,40 @@ end
 
 def validate_script_path(input_path, script_file)
   file_path = File.join(input_path, script_file)
+  FileUtils.cd(input_path)
+  branch = `git rev-parse --abbrev-ref HEAD`.strip
+  puts "Current branch: #{branch}".yellow
   abort_with_message("Script file or repository directory not found at AC_SCRIPT_REPO_DIR: #{file_path}") unless File.exist?(file_path)
 end
 
 def run_command(cmd)
-  masked = cmd.gsub(/(Authorization:\s*\w+\s+)\S+/,'\1********')
-  puts "@@[command] #{masked}"
-  stdout, stderr, status = Open3.capture3(cmd)
+  args = cmd.is_a?(Array) ? cmd : Shellwords.split(cmd)
+  masked = args.map { |t| t.gsub(/(Authorization:\s*\w+\s+)\S+/, '\1********') }
+  printable = masked.map { |t| t.match?(/\s/) ? %Q["#{t.gsub('"','\"')}"] : t }.join(' ')
+  puts "@@[command] #{printable}"
+  stdout, stderr, status = Open3.capture3(*args)
   puts stdout unless stdout.empty?
-  unless status.success?
-    raise "Command failed (#{status.exitstatus}):\n#{stderr}"
-  end
+  raise "Command failed (#{status.exitstatus}):\n#{stderr}" unless status.success?
   true
 end
 def get_path_clone_repo(clone_url, extra_header = nil)
-  root = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
+  dir = ENV['AC_TEMP_DIR'] || raise('AC_TEMP_DIR not set')
+  FileUtils.cd(dir)
+  root = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S_%L')}_#{Process.pid}"
   FileUtils.mkdir_p(root)
   repo = File.basename(clone_url, '.git')
-  path = File.join(root, repo)
   FileUtils.cd(root) do
     cmd = extra_header ? %Q[git -c "#{extra_header}" clone #{clone_url}] : "git clone #{clone_url}"
     run_command(cmd)
   end
+  path = File.join(dir, root, repo)
   path
 end
 
 def prepare_args(raw_params)
-  parts = Shellwords.split(raw_params.to_s.gsub(',', ' '))
-  parts.empty? ? '' : " #{parts.join(' ')}"
+  params = raw_params.to_s.strip
+  params = params.gsub(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/, ' ')
+  Shellwords.split(params)
 end
 
 def execute_script_file(folder, script_file, branch, script_args)
@@ -62,24 +68,23 @@ def execute_script_file(folder, script_file, branch, script_args)
       run_command("git checkout #{branch}")
     end
     abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
-    exec_with_args = "#{script_file}#{script_args}"
     extname = File.extname(script_file).downcase
     case extname
     when '.sh'
       FileUtils.chmod('+x', script_file)
-      run_command("./#{exec_with_args}")
+      run_command(["./#{script_file}", *script_args])
     when '.py'
-      run_command("python #{exec_with_args}")
+      run_command(["python", script_file, *script_args])
     when '.rb'
-      run_command("ruby #{exec_with_args}")
+      run_command(["ruby", script_file, *script_args])
     when '.pl'
-      run_command("perl #{exec_with_args}")
+      run_command(["perl", script_file, *script_args])
     when '.js'
-      run_command("node #{exec_with_args}")
+      run_command(["node", script_file, *script_args])
     when '.java'
       run_command("javac -d . #{script_file}")
       class_name = File.basename(script_file, '.java')
-      run_command("java -cp .:#{File.dirname(script_file)} #{class_name}#{script_args}")
+      run_command(["java", "-cp", ".:#{File.dirname(script_file)}", class_name, *script_args])
     else
       abort_with_message("Unsupported script type: #{script_file}")
     end
@@ -87,6 +92,7 @@ def execute_script_file(folder, script_file, branch, script_args)
 end
 
 def write_env_file(env_var_name, value)
+  #git url yoksa envye yazma
   File.open(env_has_key("AC_ENV_FILE_PATH"), 'a') do |f|
     f.puts "#{env_var_name}=#{value}"
   end
@@ -108,6 +114,7 @@ def main
   ac_git_branch        = get_env_variable("AC_SCRIPT_GIT_BRANCH")
   ac_git_extra_params  = get_env_variable("AC_SCRIPT_EXTRA_PARAMETERS")
 
+  cd temp_dir
   if param_checker(ac_git_clone_url)
     if param_checker(ac_git_username,ac_git_pat)
       extra_header = set_the_authentication(ac_git_username, ac_git_pat)
