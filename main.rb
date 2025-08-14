@@ -81,8 +81,8 @@ def get_path_clone_repo(clone_url, extra_header = nil)
     printable = mask_sensitive_text(printable) if extra_header
     print_command(printable)
     run_command(args)
+    puts_current_branch
   end
-  puts_current_branch
   File.join(dir, root, repo)
 end
 
