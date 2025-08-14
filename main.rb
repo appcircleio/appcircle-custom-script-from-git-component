@@ -91,8 +91,8 @@ def execute_script_file(folder, script_file, branch, script_args)
   end
 end
 
-def write_env_file(env_var_name, value)
-  #git url yoksa envye yazma
+def write_env_file(ac_git_clone_url,env_var_name, value)
+  return unless param_checker(ac_git_clone_url)
   File.open(env_has_key("AC_ENV_FILE_PATH"), 'a') do |f|
     f.puts "#{env_var_name}=#{value}"
   end
@@ -130,7 +130,7 @@ def main
   script_args = prepare_args(ac_git_extra_params)
   execute_script_file(root_folder, ac_git_script_file, ac_git_branch, script_args)
 
-  write_env_file("AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
+  write_env_file(ac_git_clone_url,"AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
 
   puts 'Custom script execution completed successfully.'.green
 
