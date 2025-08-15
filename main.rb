@@ -34,18 +34,30 @@ def get_current_branch
 end
 
 
-def validate_script_path(input_path, script_file)
-  file_path = File.join(input_path, script_file)
+def validate_script_path(input_path, branch, script_file)
+  unless Dir.exist?(input_path)
+    abort_with_message(
+      "Repository could not be found at: #{input_path}\n" \
+        "Please ensure that AC_SCRIPT_REPO_DIR points to a valid cloned repository that has been downloaded in a previous step."
+    )
+  end
   FileUtils.cd(input_path)
-  abort_with_message(
-    "Script file not found at: #{file_path}\n" \
-      "Please make sure that:\n" \
-      "1. AC_SCRIPT_REPO_DIR points to a valid cloned repository.\n" \
-      "2. The file '#{script_file}' exists in the specified directory.\n" \
-      "3. You have pulled the latest changes from the correct branch."
-  ) unless File.exist?(file_path)
-end
 
+  unless branch.nil? || branch.strip.empty?
+    run_command("git checkout #{branch}")
+  end
+  get_current_branch
+
+  file_path = File.join(input_path, script_file)
+  unless File.exist?(file_path)
+    abort_with_message(
+      "Script file not found at: #{file_path}\n" \
+        "Please ensure that:\n" \
+        "1. The file '#{script_file}' exists in the specified directory.\n" \
+        "2. You have pulled the latest changes from the correct branch.\n"
+    )
+  end
+end
 
 def parse_command(cmd)
   cmd.is_a?(Array) ? cmd : Shellwords.split(cmd)
@@ -70,7 +82,7 @@ def run_command(args)
   true
 end
 
-def get_path_clone_repo(clone_url, extra_header = nil)
+def get_path_clone_repo(clone_url, branch, extra_header = nil)
   dir = env_has_key("AC_TEMP_DIR")
   FileUtils.cd(dir)
   root = "Cloned_Script_#{Time.now.strftime('%Y%m%d_%H%M%S_%L')}_#{Process.pid}"
@@ -84,7 +96,13 @@ def get_path_clone_repo(clone_url, extra_header = nil)
     run_command(args)
   end
   repo = File.basename(clone_url, '.git')
-  File.join(dir, root, repo)
+  path = File.join(dir, root, repo)
+  FileUtils.cd(path) do
+    unless branch.nil? || branch.strip.empty?
+      run_command("git checkout #{branch}")
+    end
+  end
+  path
 end
 
 def prepare_args(raw_params)
@@ -93,12 +111,8 @@ def prepare_args(raw_params)
   Shellwords.split(params)
 end
 
-def execute_script_file(folder, script_file, branch, script_args)
+def execute_script_file(folder, script_file, script_args)
   FileUtils.cd(folder) do
-    unless branch.nil? || branch.strip.empty?
-      run_command("git checkout #{branch}")
-    end
-    get_current_branch
     abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
     extname = File.extname(script_file).downcase
     case extname
@@ -150,16 +164,16 @@ def main
     if param_checker(ac_git_username,ac_git_pat)
       extra_header = set_the_authentication(ac_git_username, ac_git_pat)
     end
-    root_folder  = get_path_clone_repo(ac_git_clone_url, extra_header)
+    root_folder  = get_path_clone_repo(ac_git_clone_url, ac_git_branch, extra_header)
   elsif param_checker(ac_git_repo_path)
-    validate_script_path(ac_git_repo_path, ac_git_script_file)
+    validate_script_path(ac_git_repo_path, ac_git_branch, ac_git_script_file)
     root_folder = ac_git_repo_path
   else
     abort_with_message("Error: Please provide either `AC_SCRIPT_REPO_DIR` or `AC_SCRIPT_REPO_CLONE_URL`.")
   end
 
   script_args = prepare_args(ac_git_extra_params)
-  execute_script_file(root_folder, ac_git_script_file, ac_git_branch, script_args)
+  execute_script_file(root_folder, ac_git_script_file, script_args)
 
   write_env_file(ac_git_clone_url, "AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
 
