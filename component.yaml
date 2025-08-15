@@ -16,7 +16,7 @@ inputs:
   - key: "AC_SCRIPT_REPO_DIR"
     title: "Repository Directory"
     description: "If the Git repository has already been cloned in a previous step of the same workflow, set the Repository Directory Output here. This input is required if `Git Clone URL` is not provided."
-    defaultValue: "AC_SCRIPT_OUTPUT_REPO_DIR"
+    defaultValue: "$AC_SCRIPT_REPO_OUTPUT_DIR"
     isRequired: false
     helpText: ""
   - key: "AC_SCRIPT_REPO_CLONE_URL"
