@@ -33,14 +33,16 @@ def get_current_branch
   branch
 end
 
-
-def validate_script_path(input_path, branch, script_file)
-  unless Dir.exist?(input_path)
+def validate_repo_path(repo_path)
+  unless Dir.exist?(repo_path)
     abort_with_message(
-      "Repository could not be found at: #{input_path}\n" \
+      "Repository could not be found at: #{repo_path}\n" \
         "Please ensure that AC_SCRIPT_REPO_DIR points to a valid cloned repository that has been downloaded in a previous step."
     )
   end
+end
+
+def validate_script_path(input_path, branch, script_file)
   FileUtils.cd(input_path)
 
   unless branch.nil? || branch.strip.empty?
@@ -96,13 +98,7 @@ def get_path_clone_repo(clone_url, branch, extra_header = nil)
     run_command(args)
   end
   repo = File.basename(clone_url, '.git')
-  path = File.join(dir, root, repo)
-  FileUtils.cd(path) do
-    unless branch.nil? || branch.strip.empty?
-      run_command("git checkout #{branch}")
-    end
-  end
-  path
+  File.join(dir, root, repo)
 end
 
 def prepare_args(raw_params)
@@ -113,7 +109,6 @@ end
 
 def execute_script_file(folder, script_file, script_args)
   FileUtils.cd(folder) do
-    abort_with_message("Script file not found: #{script_file}") unless File.exist?(script_file)
     extname = File.extname(script_file).downcase
     case extname
     when '.sh'
@@ -164,18 +159,19 @@ def main
     if param_checker(ac_git_username,ac_git_pat)
       extra_header = set_the_authentication(ac_git_username, ac_git_pat)
     end
-    root_folder  = get_path_clone_repo(ac_git_clone_url, ac_git_branch, extra_header)
+    repo_path = get_path_clone_repo(ac_git_clone_url, ac_git_branch, extra_header)
   elsif param_checker(ac_git_repo_path)
-    validate_script_path(ac_git_repo_path, ac_git_branch, ac_git_script_file)
-    root_folder = ac_git_repo_path
+    validate_repo_path(ac_git_repo_path)
+    repo_path = ac_git_repo_path
   else
     abort_with_message("Error: Please provide either `AC_SCRIPT_REPO_DIR` or `AC_SCRIPT_REPO_CLONE_URL`.")
   end
 
+  validate_script_path(repo_path, ac_git_branch, ac_git_script_file)
   script_args = prepare_args(ac_git_extra_params)
-  execute_script_file(root_folder, ac_git_script_file, script_args)
+  execute_script_file(repo_path, ac_git_script_file, script_args)
 
-  write_env_file(ac_git_clone_url, "AC_SCRIPT_REPO_OUTPUT_DIR", root_folder)
+  write_env_file(ac_git_clone_url, "AC_SCRIPT_REPO_OUTPUT_DIR", repo_path)
 
   puts 'Custom script execution completed successfully.'.green
 
