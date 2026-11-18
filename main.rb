@@ -3,7 +3,7 @@ require 'base64'
 require 'fileutils'
 require 'time'
 require 'open3'
-require 'colored'
+begin; require 'colored'; rescue LoadError; end
 require 'shellwords'
 
 def abort_with_message(msg)
@@ -34,6 +34,7 @@ def get_current_branch
 end
 
 def validate_repo_path(repo_path)
+  raise ArgumentError, 'validate_repo_path: repo_path is nil' if repo_path.nil?
   unless Dir.exist?(repo_path)
     abort_with_message(
       "Repository could not be found at: #{repo_path}\n" \
@@ -43,6 +44,8 @@ def validate_repo_path(repo_path)
 end
 
 def validate_script_path(input_path, branch, script_file)
+  raise ArgumentError, 'validate_script_path: input_path is nil' if input_path.nil?
+  raise ArgumentError, 'validate_script_path: script_file is nil' if script_file.nil?
   FileUtils.cd(input_path)
 
   unless branch.nil? || branch.strip.empty?
@@ -62,14 +65,17 @@ def validate_script_path(input_path, branch, script_file)
 end
 
 def parse_command(cmd)
+  raise ArgumentError, 'parse_command: cmd is nil' if cmd.nil?
   cmd.is_a?(Array) ? cmd : Shellwords.split(cmd)
 end
 
 def format_printable(args)
+  raise ArgumentError, 'format_printable: args is nil' if args.nil?
   args.map { |t| t.match?(/\s/) ? %Q["#{t.gsub('"','\"')}"] : t }.join(' ')
 end
 
 def mask_sensitive_text(text)
+  raise ArgumentError, 'mask_sensitive_text: text is nil' if text.nil?
   text.gsub(/(Authorization:\s*\w+\s+)\S+/, '\1********')
 end
 
@@ -108,6 +114,8 @@ def prepare_args(raw_params)
 end
 
 def execute_script_file(folder, script_file, script_args)
+  raise ArgumentError, 'execute_script_file: folder is nil' if folder.nil?
+  raise ArgumentError, 'execute_script_file: script_file is nil' if script_file.nil?
   FileUtils.cd(folder) do
     extname = File.extname(script_file).downcase
     case extname
@@ -177,4 +185,6 @@ def main
 
 end
 
-main
+if __FILE__ == $PROGRAM_NAME
+  main
+end

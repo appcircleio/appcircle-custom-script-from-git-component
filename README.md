@@ -20,3 +20,13 @@ Clone a Git repository from a remote source or use a repository that already exi
 ## Output Variable
 
 - `AC_SCRIPT_REPO_OUTPUT_DIR`: Specifies a local directory path where the Git repository is cloned on the runner. This allows reusing the same repository in subsequent steps of the workflow.
+
+## Running tests
+
+Requires the [RSpec](https://rspec.info) gem and the Ruby standard library (Coverage, Open3). No Gemfile or Bundler needed.
+
+```bash
+ruby test/test_main.rb
+```
+
+Tests never touch the network or execute a real toolchain: helpers that shell out are verified by asserting the composed command, and subprocess tests run `main.rb` against a fake `git` on `PATH` with fixture scripts inside a temporary directory. The `colored` gem is stubbed automatically when it is not installed. A coverage report is printed at the end of each run.
